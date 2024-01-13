@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ServiceTest</string>
+    <string name="enable_disable_switch">Enable or disable with switch</string>
+</resources>
