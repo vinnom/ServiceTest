@@ -2,7 +2,6 @@ package com.vipro.servicetest.core
 
 import android.app.Service
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.IBinder
 import com.vipro.servicetest.log.logd
@@ -18,17 +17,21 @@ class MyService : Service() {
     private val scope = CoroutineScope(job)
     private val repository by lazy { BroadcastRepository(this, scope) }
 
+    private val obj = this
+
+    override fun onCreate() {
+        super.onCreate()
+        logd(MyService::class.java.simpleName) { "$obj onCreate" }
+    }
+
 
     override fun onBind(intent: Intent?): IBinder? {
-        logd(MyService::class.java.simpleName) { "onBind" }
+        logd(MyService::class.java.simpleName) { "$obj onBind" }
         repository.registerReceiver()
 
         scope.launch {
             repository.stateFlow.collect { serviceState ->
-                if (serviceState == PackageManager.COMPONENT_ENABLED_STATE_DISABLED)
-                    logd(MyService::class.java.simpleName) { "component disabled" }
-                else
-                    logd(MyService::class.java.simpleName) { "component enabled" }
+                logd(MyService::class.java.simpleName) { "$obj onBind serviceState=$serviceState" }
             }
         }
 
@@ -36,13 +39,18 @@ class MyService : Service() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        logd(MyService::class.java.simpleName) { "onUnbind" }
+        logd(MyService::class.java.simpleName) { "$obj onUnbind" }
+        scope.launch {
+            repository.stateFlow.collect { serviceState ->
+                logd(MyService::class.java.simpleName) { "$obj onUnbind serviceState=$serviceState" }
+            }
+        }
         repository.unregisterReceiver()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
-        logd(MyService::class.java.simpleName) { "onDestroy" }
+        logd(MyService::class.java.simpleName) { "$obj onDestroy" }
         job.complete()
         super.onDestroy()
     }

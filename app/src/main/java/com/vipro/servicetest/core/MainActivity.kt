@@ -17,19 +17,16 @@ import com.vipro.servicetest.setting.Setting
 class MainActivity : AppCompatActivity() {
 
     private var setting = Setting()
-    private var serviceBounded = false
 
     private val switchLayout by lazy { findViewById<ImageView>(R.id.switch_layout) }
     private val switch by lazy { findViewById<SwitchMaterial>(R.id.switch_button) }
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             logd { "onServiceConnected" }
-            serviceBounded = true
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             logd { "onServiceDisconnected" }
-            serviceBounded = false
         }
     }
 
@@ -38,32 +35,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         logd(MainActivity::class.java.simpleName) { "onCreate" }
         logd { "creating $setting" }
+    }
 
+    override fun onResume() {
+        super.onResume()
         switch.setOnCheckedChangeListener { _, isChecked ->
             setting = Setting(isChecked, "${Setting.settingName}=$isChecked")
             val componentName = ComponentName(applicationContext, MyService::class.java)
-            val serviceState = packageManager.getComponentEnabledSetting(componentName)
 
-            val enableService =
+            val serviceState =
                 if (isChecked) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                 else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
 
-            changeServiceState(componentName, enableService)
-            onChecked(isChecked)
+            if (isChecked) {
+                changeServiceState(componentName, serviceState)
+                bind()
+            } else {
+                unbind()
+                changeServiceState(componentName, serviceState)
+            }
+
         }
     }
 
     private fun changeServiceState(componentName: ComponentName, enableService: Int) {
         val flag = PackageManager.DONT_KILL_APP
         packageManager.setComponentEnabledSetting(componentName, enableService, flag)
-    }
-
-    private fun onChecked(isChecked: Boolean) {
-        if (isChecked && !serviceBounded) {
-            bind()
-        } else if (!isChecked && serviceBounded) {
-            unbind()
-        }
     }
 
     private fun unbind() {
@@ -73,7 +70,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun bind() {
         bindService(
-            Intent(this@MainActivity, MyService::class.java),
+            Intent(this.applicationContext, MyService::class.java),
             connection,
             BIND_AUTO_CREATE or BIND_NOT_PERCEPTIBLE
         )
